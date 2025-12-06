@@ -6,11 +6,17 @@
 #define DIG_PIN 27
 #define LED_PIN 23 
 
+#define IR_LED_PIN        23   // KY-005 signal
+
+const int IR_CHANNEL = 0;
+const int IR_FREQ    = 16;
+const int IR_RES     = 8;
+
 uint8_t peerMac[] = { 0x84, 0x1F, 0xE8, 0x69, 0x6A, 0xFC };
 uint8_t myState     = 0;  // what THIS board is sending (0/1)
 uint8_t theirState  = 0;  // last value received from the other board
 
-bool doorState = false;
+uint8_t currentDoorState = 0;
 
 // Optional: check send status
 void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
@@ -24,6 +30,7 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     theirState = incomingData[0];
     Serial.print("Got theirState = ");
     Serial.println(theirState);
+    currentDoorState = (theirState == 0) ? 0 : 1;
   }
 }
 
@@ -62,57 +69,44 @@ void setup() {
   // Improve ADC range
   analogSetPinAttenuation(ANA_PIN, ADC_11db);
 
+  // Setup IR LED
+  ledcSetup(IR_CHANNEL, IR_FREQ, IR_RES);
+  ledcAttachPin(IR_LED_PIN, IR_CHANNEL);
+  ledcWrite(IR_CHANNEL, 0);  // Start with IR LED off
+
   pinMode(LED_PIN, OUTPUT);
   pinMode(DIG_PIN, INPUT);
   pinMode(ANA_PIN, INPUT);
   digitalWrite(LED_PIN, LOW);
 }
 
-bool lastState = false;
+bool hasSetIRLED = false;
 
 void loop() {
-  if (theirState != lastState) {
-    lastState = theirState;
-    Serial.print("Their state changed to: ");
-    Serial.println(theirState);
+  if (currentDoorState == 0) {
+    // Door is closed, turn off IR LED
+    ledcWrite(IR_CHANNEL, 0);
+    hasSetIRLED = false;
 
-    // Reflect their state on the LED
-    digitalWrite(LED_PIN, theirState ? HIGH : LOW);
+    int val   = analogRead(ANA_PIN);
+    int state = digitalRead(DIG_PIN);
+
+    // Show digital trigger on LED
+    if (state == HIGH) {
+      currentDoorState = 1;
+      esp_err_t result = esp_now_send(peerMac, &currentDoorState, sizeof(currentDoorState));
+
+      Serial.print("Sent currentDoorState = ");
+      Serial.print(currentDoorState);
+      Serial.print("  result = ");
+      Serial.println(result == ESP_OK ? "OK" : "ERROR");
+    }
+  } else if (!hasSetIRLED) {
+    hasSetIRLED = true;
+    ledcWrite(IR_CHANNEL, 128);  // Turn on IR LED at half power
   }
-
-  // Example: toggle myState every 2000 ms and send it
-  // static unsigned long lastToggle = 0;
-  // unsigned long now = millis();
-
-  // if (now - lastToggle >= 2000) {
-  //   lastToggle = now;
-
-  //   // Toggle between 0 and 1
-  //   myState = (myState == 0) ? 1 : 0;
-
-  //   esp_err_t result = esp_now_send(peerMac, &myState, sizeof(myState));
-
-  //   Serial.print("Sent myState = ");
-  //   Serial.print(myState);
-  //   Serial.print("  result = ");
-  //   Serial.println(result == ESP_OK ? "OK" : "ERROR");
-  // }
-
-
-
-
-
-
-  // int val   = analogRead(ANA_PIN);
-  // int state = digitalRead(DIG_PIN);
-
-  // // Show digital trigger on LED
-  // if (state == HIGH) {
-  //   doorState = !doorState;
-  //   digitalWrite(LED_PIN, doorState ? HIGH : LOW);
-  //   delay(500);  // simple debounce
-  // }
-
-
-  // delay(1);
+  
+  // Example: use LED to show current door state
+  digitalWrite(LED_PIN, currentDoorState ? HIGH : LOW);
+  delay(1);
 }
