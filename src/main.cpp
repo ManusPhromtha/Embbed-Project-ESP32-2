@@ -8,11 +8,11 @@
 
 uint8_t peerMac[] = { 0x84, 0x1F, 0xE8, 0x69, 0x6A, 0xFC };
 uint8_t myState     = 0;  // what THIS board is sending (0/1)
-uint8_t theirState  = 0;  // what THIS board last received (0/1)
+uint8_t theirState  = 0;  // last value received from the other board
 
 bool doorState = false;
 
-// Check send status
+// Optional: check send status
 void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
   Serial.print("Send status: ");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "SUCCESS" : "FAIL");
@@ -68,24 +68,36 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
 }
 
+bool lastState = false;
+
 void loop() {
-  // Example: toggle myState every 2000 ms and send it
-  static unsigned long lastToggle = 0;
-  unsigned long now = millis();
+  if (theirState != lastState) {
+    lastState = theirState;
+    Serial.print("Their state changed to: ");
+    Serial.println(theirState);
 
-  if (now - lastToggle >= 2000) {
-    lastToggle = now;
-
-    // Toggle between 0 and 1
-    myState = (myState == 0) ? 1 : 0;
-
-    esp_err_t result = esp_now_send(peerMac, &myState, sizeof(myState));
-
-    Serial.print("Sent myState = ");
-    Serial.print(myState);
-    Serial.print("  result = ");
-    Serial.println(result == ESP_OK ? "OK" : "ERROR");
+    // Reflect their state on the LED
+    digitalWrite(LED_PIN, theirState ? HIGH : LOW);
   }
+
+  // Example: toggle myState every 2000 ms and send it
+  // static unsigned long lastToggle = 0;
+  // unsigned long now = millis();
+
+  // if (now - lastToggle >= 2000) {
+  //   lastToggle = now;
+
+  //   // Toggle between 0 and 1
+  //   myState = (myState == 0) ? 1 : 0;
+
+  //   esp_err_t result = esp_now_send(peerMac, &myState, sizeof(myState));
+
+  //   Serial.print("Sent myState = ");
+  //   Serial.print(myState);
+  //   Serial.print("  result = ");
+  //   Serial.println(result == ESP_OK ? "OK" : "ERROR");
+  // }
+
 
 
 
