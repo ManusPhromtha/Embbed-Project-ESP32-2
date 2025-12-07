@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <Stepper.h>
+#include "DHT.h"
 
 #define ANA_PIN 34
 #define DIG_PIN 35
@@ -12,6 +13,11 @@
 #define MOTOR_IN2   14
 #define MOTOR_IN3   27
 #define MOTOR_IN4   26
+
+#define DHTPIN 4
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
 
 const int IR_CHANNEL = 0;
 const int IR_FREQ    = 16;
@@ -104,6 +110,8 @@ void setup() {
   ledcAttachPin(IR_LED_PIN, IR_CHANNEL);
   ledcWrite(IR_CHANNEL, 0);  // Start with IR LED off
 
+  dht.begin();
+  
   pinMode(DIG_PIN, INPUT);
   pinMode(ANA_PIN, INPUT);
 }
