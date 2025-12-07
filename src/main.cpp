@@ -3,10 +3,10 @@
 #include <esp_now.h>
 
 #define ANA_PIN 34
-#define DIG_PIN 27
+#define DIG_PIN 35
 #define LED_PIN 23 
 
-#define IR_LED_PIN        23   // KY-005 signal
+#define IR_LED_PIN   33   // KY-005 signal pin
 
 const int IR_CHANNEL = 0;
 const int IR_FREQ    = 16;
@@ -16,7 +16,9 @@ uint8_t peerMac[] = { 0x84, 0x1F, 0xE8, 0x69, 0x6A, 0xFC };
 uint8_t myState     = 0;  // what THIS board is sending (0/1)
 uint8_t theirState  = 0;  // last value received from the other board
 
-uint8_t currentDoorState = 0;
+uint8_t currentUnlockState = 0;
+
+bool hasSetIRLED = false;
 
 // Optional: check send status
 void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
@@ -30,7 +32,7 @@ void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     theirState = incomingData[0];
     Serial.print("Got theirState = ");
     Serial.println(theirState);
-    currentDoorState = (theirState == 0) ? 0 : 1;
+    currentUnlockState = (theirState == 0) ? 0 : 1;
   }
 }
 
@@ -80,10 +82,8 @@ void setup() {
   digitalWrite(LED_PIN, LOW);
 }
 
-bool hasSetIRLED = false;
-
 void loop() {
-  if (currentDoorState == 0) {
+  if (currentUnlockState == 0) {
     // Door is closed, turn off IR LED
     ledcWrite(IR_CHANNEL, 0);
     hasSetIRLED = false;
@@ -93,11 +93,11 @@ void loop() {
 
     // Show digital trigger on LED
     if (state == HIGH) {
-      currentDoorState = 1;
-      esp_err_t result = esp_now_send(peerMac, &currentDoorState, sizeof(currentDoorState));
+      currentUnlockState = 1;
+      esp_err_t result = esp_now_send(peerMac, &currentUnlockState, sizeof(currentUnlockState));
 
-      Serial.print("Sent currentDoorState = ");
-      Serial.print(currentDoorState);
+      Serial.print("Sent currentUnlockState = ");
+      Serial.print(currentUnlockState);
       Serial.print("  result = ");
       Serial.println(result == ESP_OK ? "OK" : "ERROR");
     }
@@ -107,6 +107,6 @@ void loop() {
   }
   
   // Example: use LED to show current door state
-  digitalWrite(LED_PIN, currentDoorState ? HIGH : LOW);
+  digitalWrite(LED_PIN, currentUnlockState == 1 ? HIGH : LOW);
   delay(1);
 }
