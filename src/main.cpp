@@ -160,6 +160,9 @@ bool hasSetIRLED = false;
 void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
   Serial.print("Send status: ");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "SUCCESS" : "FAIL");
+  if (status != ESP_NOW_SEND_SUCCESS) {
+    lockDoor();
+  }
 }
 
 // Called when *this* ESP32 receives data from the peer
@@ -179,7 +182,7 @@ void lockDoor() {
   temperature = dht.readTemperature();
   updateShadow();
   
-  int quarterTurn = STEPS_PER_REV / 4;
+  int quarterTurn = STEPS_PER_REV / 5;
   stepperMotor.step(-quarterTurn);  // choose direction that locks
   delay(2000);
 }
@@ -191,7 +194,7 @@ void unlockDoor() {
   openTimeStr = timeClient.getFormattedTime();
   Serial.println("Door Opened at: " + openTimeStr);
 
-  int quarterTurn = STEPS_PER_REV / 4;
+  int quarterTurn = STEPS_PER_REV / 5;
   stepperMotor.step(quarterTurn);   // opposite direction
   delay(2000);
 }
@@ -274,6 +277,8 @@ void setup() {
 
   // Setup Stepper motor
   stepperMotor.setSpeed(10);  // 10 RPM is safe
+  int quarterTurn = STEPS_PER_REV / 5;
+  stepperMotor.step(+quarterTurn);
   lockDoor();                 // Start locked
 
   // Setup IR LED
