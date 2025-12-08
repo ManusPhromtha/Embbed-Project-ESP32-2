@@ -156,23 +156,6 @@ Stepper stepperMotor(STEPS_PER_REV, MOTOR_IN1, MOTOR_IN3, MOTOR_IN2, MOTOR_IN4);
 
 bool hasSetIRLED = false;
 
-// Optional: check send status
-void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
-  Serial.print("Send status: ");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "SUCCESS" : "FAIL");
-  if (status != ESP_NOW_SEND_SUCCESS) {
-    lockDoor();
-  }
-}
-
-// Called when *this* ESP32 receives data from the peer
-void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
-  if (len >= 1) {
-    newUnlockState = incomingData[0];
-    Serial.print("Got newUnlockState = ");
-    Serial.println(newUnlockState);
-  }
-}
 
 void lockDoor() {
   newUnlockState = 0;
@@ -186,6 +169,28 @@ void lockDoor() {
   stepperMotor.step(-quarterTurn);  // choose direction that locks
   delay(2000);
 }
+
+// Optional: check send status
+void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
+  Serial.print("Send status: ");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "SUCCESS" : "FAIL");
+  if (status != ESP_NOW_SEND_SUCCESS) {
+    //resent
+    delay(1000);
+    esp_err_t result = esp_now_send(peerMac, &currentUnlockState, sizeof(currentUnlockState));
+  }
+}
+
+// Called when *this* ESP32 receives data from the peer
+void onDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  if (len >= 1) {
+    newUnlockState = incomingData[0];
+    Serial.print("Got newUnlockState = ");
+    Serial.println(newUnlockState);
+  }
+}
+
+
 
 void unlockDoor() {
   newUnlockState = 1;
